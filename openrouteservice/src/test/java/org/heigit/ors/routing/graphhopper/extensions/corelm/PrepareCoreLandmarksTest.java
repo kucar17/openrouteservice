@@ -61,7 +61,7 @@ public class PrepareCoreLandmarksTest
 
     @Before
     public void setUp() {
-        encoder = new CarFlagEncoder(5, 5, 3);
+        encoder = new CarFlagEncoder();
         encodingManager = EncodingManager.create(encoder);
         weighting = new FastestWeighting(encoder);
         tm = TraversalMode.NODE_BASED;

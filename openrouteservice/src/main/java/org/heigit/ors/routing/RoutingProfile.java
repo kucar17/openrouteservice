@@ -1060,10 +1060,15 @@ public class RoutingProfile {
                 weighting = VAL_FASTEST;
                 weightingMethod = hasTimeDependentSpeed ? VAL_TD_FASTEST : VAL_FASTEST;
             }
-            if (RoutingProfileType.isHeavyVehicle(profileType) || RoutingProfileType.isCycling(profileType) || RoutingProfileType.isWalking(profileType)){
+            else if (RoutingProfileType.isHeavyVehicle(profileType)) {
+                weighting = VAL_RECOMMENDED;
+                weightingMethod = VAL_RECOMMENDED_PREF;
+            }
+            if (RoutingProfileType.isCycling(profileType) || RoutingProfileType.isWalking(profileType)){
                 weighting = VAL_RECOMMENDED;
                 weightingMethod = VAL_RECOMMENDED;
             }
+
         }
 
         map.put(KEY_WEIGHTING, weighting);

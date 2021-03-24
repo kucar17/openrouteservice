@@ -15,15 +15,12 @@ package org.heigit.ors.routing.graphhopper.extensions.core;
 
 import com.graphhopper.routing.*;
 import com.graphhopper.routing.ch.Path4CH;
-import com.graphhopper.routing.ch.PreparationWeighting;
 import com.graphhopper.routing.util.TraversalMode;
-import com.graphhopper.routing.weighting.TurnWeighting;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.CHGraph;
 import com.graphhopper.storage.Graph;
 import com.graphhopper.storage.SPTEntry;
 import com.graphhopper.util.EdgeIterator;
-import com.graphhopper.util.EdgeIteratorState;
 
 /**
  * Calculates best path using core routing algorithm.
@@ -40,37 +37,29 @@ public abstract class AbstractCoreRoutingAlgorithm extends AbstractRoutingAlgori
     int visitedCountTo1;
     int visitedCountFrom2;
     int visitedCountTo2;
+    int visitedEdgesALTCount;
 
     private CoreDijkstraFilter additionalCoreEdgeFilter;
 
     boolean inCore;
 
-    protected TurnWeighting turnWeighting;
-    protected boolean hasTurnWeighting;
-    protected boolean approximate = false;
-
-    public AbstractCoreRoutingAlgorithm(Graph graph, Weighting weighting) {
-        super(graph, new PreparationWeighting(weighting), TraversalMode.NODE_BASED);
-
-        if (weighting instanceof TurnWeighting) {
-            turnWeighting = (TurnWeighting) weighting;
-            hasTurnWeighting = true;
-        }
+    public AbstractCoreRoutingAlgorithm(Graph graph, Weighting weighting, TraversalMode tMode) {
+        super(graph, weighting, tMode);
 
         int size = Math.min(2000, Math.max(200, graph.getNodes() / 10));
         initCollections(size);
 
         chGraph = (CHGraph) ((QueryGraph) graph).getMainGraph();
         coreNodeLevel = chGraph.getNodes() + 1;
-        turnRestrictedNodeLevel = coreNodeLevel + 1;
     }
 
     protected abstract void initCollections(int size);
     protected PathBidirRef bestPath;
+    protected boolean doUpdateBestPath = true;
 
     CHGraph chGraph;
-    protected final int coreNodeLevel;
-    protected final int turnRestrictedNodeLevel;
+    int coreNodeLevel;
+
 
     public abstract void initFrom(int from, double weight);
 
@@ -128,6 +117,10 @@ public abstract class AbstractCoreRoutingAlgorithm extends AbstractRoutingAlgori
         return bestPath;
     }
 
+    protected void setDoUpdateBestPath(boolean b) {
+        doUpdateBestPath = b;
+    }
+
     protected void runAlgo() {
         // PHASE 1: run modified CH outside of core to find entry points
         inCore = false;
@@ -167,42 +160,11 @@ public abstract class AbstractCoreRoutingAlgorithm extends AbstractRoutingAlgori
         this.additionalCoreEdgeFilter = additionalEdgeFilter;
         return this;
     }
-
-    //TODO: refactor CoreEdgeFilter to plain EdgeFilter to avoid overriding this method
-    @Override
-    protected boolean accept(EdgeIteratorState iter, int prevOrNextEdgeId) {
-        if (iter.getEdge() == prevOrNextEdgeId) {
-            return false;
-        } else {
-            return additionalCoreEdgeFilter == null || additionalCoreEdgeFilter.accept(iter);
-        }
+    protected boolean accept(EdgeIterator iter, int prevOrNextEdgeId) {
+        return additionalCoreEdgeFilter == null || additionalCoreEdgeFilter.accept(iter);
     }
 
     protected SPTEntry createSPTEntry(int node, double weight) {
         return new SPTEntry(EdgeIterator.NO_EDGE, node, weight);
     }
-
-    void updateBestPath(SPTEntry entryCurrent, SPTEntry entryOther, double newWeight, boolean reverse) {
-        bestPath.setSwitchToFrom(reverse);
-        bestPath.setSPTEntry(entryCurrent);
-        bestPath.setWeight(newWeight);
-        bestPath.setSPTEntryTo(entryOther);
-    }
-
-    boolean isCoreNode(int node) {
-        return chGraph.getLevel(node) >= coreNodeLevel;
-    }
-
-    boolean isTurnRestrictedNode(int node) {
-        return chGraph.getLevel(node) == turnRestrictedNodeLevel;
-    }
-
-    boolean considerTurnRestrictions(int node) {
-        if (!hasTurnWeighting)
-            return false;
-        if (approximate)
-            return isTurnRestrictedNode(node);
-        return true;
-    }
-
 }
